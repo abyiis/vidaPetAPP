@@ -49,18 +49,19 @@ class VidaPetStore {
      Cada entrada: { id, fecha, hora, tipo, descripcion, mascotaId }
      tipo ∈ 'mascota' | 'cita' | 'nota'
      ========================================================= */
-  _log(tipo, descripcion, mascotaId = null){
+  
+  _log(tipo, descripcion, mascotaId = null, fechaCustom = null){
     const now = new Date();
     const entry = {
       id: this._uid(),
-      fecha: now.toISOString().slice(0,10),          // YYYY-MM-DD
-      hora: now.toTimeString().slice(0,5),            // HH:MM
+      fecha: fechaCustom || now.toISOString().slice(0,10),          
+      hora: now.toTimeString().slice(0,5),            
       tipo,
       descripcion,
       mascotaId
     };
     const historial = this._read(this.KEYS.historial);
-    historial.unshift(entry); // más reciente primero
+    historial.unshift(entry);
     this._write(this.KEYS.historial, historial);
     return entry;
   }
@@ -69,6 +70,15 @@ class VidaPetStore {
     return this._read(this.KEYS.historial)
       .filter(h => (mascotaId ? h.mascotaId === mascotaId : true))
       .filter(h => (tipo ? h.tipo === tipo : true));
+  }
+
+  /** Elimina un registro puntual del historial. Devuelve true si existía. */
+  deleteHistorial(id){
+    const historial = this._read(this.KEYS.historial);
+    const filtrado = historial.filter(h => h.id !== id);
+    if(filtrado.length === historial.length) return false;
+    this._write(this.KEYS.historial, filtrado);
+    return true;
   }
 
   /** Nota clínica/manual, opcionalmente asociada a una mascota */
@@ -118,12 +128,14 @@ class VidaPetStore {
     return true;
   }
 
-  /** Registro de un servicio prestado (baño, corte, etc.) directo en el historial */
-  registrarServicio(nombreServicio, cantidad, mascotaId = null){
+  /** Registro de un servicio prestado (baño, corte, etc.) directo en el historial.
+   *  `notas` permite adjuntar información adicional (dosis, indicaciones, etc.) */
+  registrarServicio(nombreServicio, cantidad, mascotaId = null, fechaCustom = null, notas = ''){
     const mascota = mascotaId ? this.getMascota(mascotaId) : null;
+    const notaTxt = notas && notas.trim() ? ` — ${notas.trim()}` : '';
     return this._log('servicio',
-      `Servicio: ${nombreServicio} (x${cantidad})` + (mascota ? ` — ${mascota.nombre}` : ''),
-      mascotaId);
+      `Servicio: ${nombreServicio} (x${cantidad})` + (mascota ? ` — ${mascota.nombre}` : '') + notaTxt,
+      mascotaId, fechaCustom);
   }
 
   /* =========================================================
