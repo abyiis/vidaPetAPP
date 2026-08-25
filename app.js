@@ -8,11 +8,15 @@
 const db = new VidaPetStore('vidapet');
 
 /* Preferencias de UI que no son datos de negocio (tema, mascota
-   activa, notificaciones) se guardan aparte, fuera del store de datos. */
+   activa, notificaciones, idioma) se guardan aparte, fuera del store de datos. */
 const UI_KEY = 'vidapet_ui_prefs';
 function loadUiPrefs(){
-  try{ return Object.assign({ theme:'light', notificaciones:true, selectedPetId:null }, JSON.parse(localStorage.getItem(UI_KEY)) || {}); }
-  catch(e){ return { theme:'light', notificaciones:true, selectedPetId:null }; }
+  try{ 
+    return Object.assign({ theme:'light', notificaciones:true, selectedPetId:null, lang:'es' }, JSON.parse(localStorage.getItem(UI_KEY)) || {}); 
+  }
+  catch(e){ 
+    return { theme:'light', notificaciones:true, selectedPetId:null, lang:'es' }; 
+  }
 }
 function saveUiPrefs(){ localStorage.setItem(UI_KEY, JSON.stringify(ui)); }
 let ui = loadUiPrefs();
@@ -43,6 +47,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
   applyTheme(ui.theme);
   document.getElementById('darkSwitch').checked = (ui.theme === 'dark');
   document.getElementById('notifSwitch').checked = ui.notificaciones;
+  
+  // Establecer idioma guardado en el select si existe
+  const langSelect = document.querySelector('select[onchange="changeLanguage(this.value)"]');
+  if(langSelect) langSelect.value = ui.lang;
+  if(ui.lang !== 'es') changeLanguage(ui.lang, false); // Aplicar sin mostrar notificación inicial
 
   if(!ui.selectedPetId){
     const primera = db.getMascotas()[0];
@@ -56,7 +65,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 });
 
 /* ---------------------------------------------------------
-   2) TOAST + THEME
+   2) TOAST, THEME E IDIOMA
    --------------------------------------------------------- */
 let toastTimer = null;
 function showToast(msg){
@@ -70,6 +79,50 @@ function applyTheme(theme){ document.documentElement.setAttribute('data-bs-theme
 function toggleDarkMode(isDark){ applyTheme(isDark?'dark':'light'); saveUiPrefs(); showToast(isDark?'Modo oscuro activado':'Modo claro activado'); }
 function toggleNotificaciones(checked){ ui.notificaciones = checked; saveUiPrefs(); showToast(checked?'Notificaciones activadas':'Notificaciones desactivadas'); }
 function modalOf(id){ return bootstrap.Modal.getOrCreateInstance(document.getElementById(id)); }
+
+/* Diccionario básico para el menú de navegación */
+const i18n = {
+  es: {
+    navPets: 'Mascotas',
+    navAgenda: 'Agenda',
+    navServices: 'Servicios',
+    navHistory: 'Historial',
+    navConfig: 'Configuración',
+    toastLang: 'Idioma cambiado a Español'
+  },
+  en: {
+    navPets: 'Pets',
+    navAgenda: 'Schedule',
+    navServices: 'Services',
+    navHistory: 'History',
+    navConfig: 'Settings',
+    toastLang: 'Language set to English'
+  }
+};
+
+function changeLanguage(lang, showNotif = true) {
+  ui.lang = lang;
+  saveUiPrefs();
+  const t = i18n[lang] || i18n.es;
+  
+  // Actualizar textos del menú inferior
+  const btnM = document.querySelector('.vp-nav-btn[data-target="mascotas"]');
+  if(btnM) btnM.innerHTML = `<i class="bi bi-person-hearts"></i>${t.navPets}`;
+  
+  const btnA = document.querySelector('.vp-nav-btn[data-target="agenda"]');
+  if(btnA) btnA.innerHTML = `<i class="bi bi-calendar-week"></i>${t.navAgenda}`;
+  
+  const btnS = document.querySelector('.vp-nav-btn[data-target="add-servicio"]');
+  if(btnS) btnS.innerHTML = `<i class="bi bi-clipboard2-pulse"></i>${t.navServices}`;
+  
+  const btnH = document.querySelector('.vp-nav-btn[data-target="historial"]');
+  if(btnH) btnH.innerHTML = `<i class="bi bi-clock-history"></i>${t.navHistory}`;
+  
+  const btnC = document.querySelector('.vp-nav-btn[data-target="configuracion"]');
+  if(btnC) btnC.innerHTML = `<i class="bi bi-gear"></i>${t.navConfig}`;
+
+  if(showNotif) showToast(t.toastLang);
+}
 
 /* ---------------------------------------------------------
    3) VISTA: MASCOTAS
@@ -249,6 +302,7 @@ function edadTexto(fechaISO){
 }
 
 function changeMonth(delta){ calDate.setMonth(calDate.getMonth()+delta); renderCalendar(); renderEventsList(); }
+function isoDate(dt){ return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`; }
 
 function renderCalendar(){
   document.getElementById('calMonthLabel').textContent = `${MESES[calDate.getMonth()]} ${calDate.getFullYear()}`;
@@ -263,23 +317,55 @@ function renderCalendar(){
   const today = new Date();
 
   const citas = db.getCitas().filter(c => c.estado !== 'cancelada' && (!ui.selectedPetId || c.mascotaId === ui.selectedPetId));
-  const eventDays = new Set(citas
-    .filter(c=>{ const d=new Date(c.fecha); return d.getFullYear()===year && d.getMonth()===month; })
-    .map(c=> new Date(c.fecha).getDate()));
+  const eventDaysByDate = new Set(citas.map(c=>c.fecha));
 
-  for(let i=firstDow-1;i>=0;i--) grid.appendChild(dayCell(daysInPrevMonth-i, true,false,false));
+  for(let i=firstDow-1;i>=0;i--){
+    const d = daysInPrevMonth-i;
+    const iso = isoDate(new Date(year, month-1, d));
+    grid.appendChild(dayCell(d, true, false, eventDaysByDate.has(iso), iso));
+  }
   for(let d=1; d<=daysInMonth; d++){
+    const iso = isoDate(new Date(year, month, d));
     const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
-    grid.appendChild(dayCell(d,false,isToday,eventDays.has(d)));
+    grid.appendChild(dayCell(d,false,isToday,eventDaysByDate.has(iso), iso));
   }
   const trailing = (7 - ((firstDow+daysInMonth)%7))%7;
-  for(let d=1; d<=trailing; d++) grid.appendChild(dayCell(d,true,false,false));
+  for(let d=1; d<=trailing; d++){
+    const iso = isoDate(new Date(year, month+1, d));
+    grid.appendChild(dayCell(d,true,false,eventDaysByDate.has(iso), iso));
+  }
 }
-function dayCell(num,muted,isToday,hasEvent){
+function dayCell(num,muted,isToday,hasEvent,isoStr){
   const el=document.createElement('div');
   el.className='vp-cal-day'+(muted?' muted':'')+(isToday?' today':'')+(hasEvent?' has-event':'');
   el.textContent=num;
+  el.dataset.date = isoStr;
+  el.addEventListener('click', ()=> openDayEventsModal(isoStr));
   return el;
+}
+
+/* --- Modal: todos los eventos de un día concreto --- */
+function openDayEventsModal(dateISO){
+  const citasDia = db.getCitas()
+    .filter(c => c.fecha === dateISO && c.estado !== 'cancelada' && (!ui.selectedPetId || c.mascotaId === ui.selectedPetId))
+    .sort((a,b)=> a.nombre.localeCompare(b.nombre));
+
+  const fechaFmt = new Date(dateISO+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('dayEventsTitle').innerHTML = `<i class="bi bi-calendar3 me-2"></i>${fechaFmt}`;
+
+  const list = document.getElementById('dayEventsList');
+  if(citasDia.length === 0){
+    list.innerHTML = `<div class="vp-empty"><i class="bi bi-calendar-x"></i><p>No hay eventos para este día.</p></div>`;
+  } else {
+    list.innerHTML = citasDia.map(c => eventCardHTML(c)).join('');
+    list.querySelectorAll('[data-event-id]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        modalOf('modalDayEvents').hide();
+        openEventActionModal(btn.dataset.eventId);
+      });
+    });
+  }
+  modalOf('modalDayEvents').show();
 }
 
 function eventTipoMeta(tipo){
@@ -401,46 +487,73 @@ const SERVICES_CATALOG = [
   { key:'pelo', nombre:'Corte de pelo' }
 ];
 let serviceCounts = {};
+let serviceNotes = {};
+
+function escapeAttr(str){ return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 
 function renderServicios(){
   const wrap = document.getElementById('serviceListWrap');
   wrap.innerHTML = SERVICES_CATALOG.map(svc=>{
     const count = serviceCounts[svc.key] || 0;
+    const nota = serviceNotes[svc.key] || '';
     return `
-      <div class="vp-service-row">
-        <span class="vp-service-name">${svc.nombre}</span>
-        <div class="vp-stepper">
-          <button class="vp-step-btn" data-step="${svc.key}" data-delta="-1" ${count===0?'disabled':''}>−</button>
-          <span class="vp-step-count">${count}</span>
-          <button class="vp-step-btn plus" data-step="${svc.key}" data-delta="1">+</button>
+      <div class="vp-service-row-wrap">
+        <div class="vp-service-row">
+          <span class="vp-service-name">${svc.nombre}</span>
+          <div class="vp-stepper">
+            <button class="vp-step-btn" data-step="${svc.key}" data-delta="-1" ${count===0?'disabled':''}>−</button>
+            <span class="vp-step-count">${count}</span>
+            <button class="vp-step-btn plus" data-step="${svc.key}" data-delta="1">+</button>
+          </div>
         </div>
+        ${count>0 ? `<input type="text" class="form-control form-control-sm vp-service-note" data-note="${svc.key}" placeholder="Información adicional (opcional): dosis, indicaciones…" value="${escapeAttr(nota)}">` : ''}
       </div>`;
   }).join('');
   wrap.querySelectorAll('[data-step]').forEach(btn=>{
     btn.addEventListener('click', ()=> stepService(btn.dataset.step, Number(btn.dataset.delta)));
   });
+  wrap.querySelectorAll('[data-note]').forEach(inp=>{
+    inp.addEventListener('input', ()=> { serviceNotes[inp.dataset.note] = inp.value; });
+  });
 }
 function stepService(key, delta){
   serviceCounts[key] = Math.max(0, (serviceCounts[key]||0) + delta);
+  if(serviceCounts[key] === 0) delete serviceNotes[key];
   renderServicios();
 }
 function guardarServicios(){
   const mascotas = db.getMascotas();
   if(mascotas.length === 0){ showToast('Añade una mascota antes de agendar un servicio'); return; }
-  const pet = db.getMascota(ui.selectedPetId) || mascotas[0];
   const seleccionados = Object.entries(serviceCounts).filter(([,c])=> c>0);
   if(seleccionados.length === 0){ showToast('Selecciona al menos un servicio'); return; }
 
+  // Establecer la fecha actual por defecto en el input del modal
+  const inputDate = document.getElementById('inputServiceDate');
+  if(inputDate) {
+    inputDate.value = new Date().toISOString().slice(0,10);
+  }
+  modalOf('modalServiceDate').show();
+}
+
+function confirmarGuardarServicios(){
+  const mascotas = db.getMascotas();
+  const pet = db.getMascota(ui.selectedPetId) || mascotas[0];
+  const seleccionados = Object.entries(serviceCounts).filter(([,c])=> c>0);
+  const fechaSeleccionada = document.getElementById('inputServiceDate').value || new Date().toISOString().slice(0,10);
+
   seleccionados.forEach(([key,count])=>{
     const svc = SERVICES_CATALOG.find(s=>s.key===key);
-    db.registrarServicio(svc.nombre, count, pet.id); // auto-log en historial
+    db.registrarServicio(svc.nombre, count, pet.id, fechaSeleccionada, serviceNotes[key] || '');
   });
 
   serviceCounts = {};
+  serviceNotes = {};
   renderServicios();
+  modalOf('modalServiceDate').hide();
   showToast('Servicio(s) añadido(s) al historial');
   goTo('historial');
 }
+
 
 /* ---------------------------------------------------------
    7) VISTA: HISTORIAL (auditoría: mascota | cita | servicio | nota)
@@ -502,12 +615,28 @@ function renderHistorial(){
             <p class="vp-hist-title">${fechaFmt} ${h.hora} &nbsp;·&nbsp; ${h.descripcion}</p>
           </div>
           ${pet ? `<span class="vp-event-badge" style="align-self:flex-start;">${pet.nombre}</span>` : ''}
+          <button class="vp-hist-delete" data-hist-id="${h.id}" aria-label="Eliminar registro" title="Eliminar registro">
+            <i class="bi bi-trash3"></i>
+          </button>
         </div>`;
     });
   });
   container.innerHTML = html;
+  container.querySelectorAll('[data-hist-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=> confirmarEliminarHistorial(btn.dataset.histId));
+  });
 }
 document.getElementById('historialSearch').addEventListener('input', renderHistorial);
+
+function confirmarEliminarHistorial(id){
+  document.getElementById('btnConfirmDeleteHist').onclick = ()=>{
+    db.deleteHistorial(id);
+    modalOf('modalConfirmDeleteHist').hide();
+    renderHistorial();
+    showToast('Registro eliminado del historial');
+  };
+  modalOf('modalConfirmDeleteHist').show();
+}
 
 /* ---------------------------------------------------------
    8) NOTAS CLÍNICAS / MANUALES
@@ -537,7 +666,7 @@ document.getElementById('formNota').addEventListener('submit', function(e){
    9) VISTA: CONFIGURACIÓN
    --------------------------------------------------------- */
 function editarPerfilCampo(campo){
-  const valor = prompt(campo==='nombre' ? 'Editar nombre:' : 'Añadir número telefónico:', '');
+  const valor = prompt('Editar nombre:', '');
   if(valor === null) return;
   showToast('Perfil actualizado');
 }
