@@ -1,0 +1,11 @@
+{
+  "appId": "co.edu.upb.vidapet",
+  "appName": "VidaPet",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

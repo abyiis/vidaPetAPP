@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VidaPet</title>
+
+<!-- Bootstrap, iconos y fuentes ahora se empaquetan vía Vite (ver src/main.js).
+     Se eliminaron los CDN externos: la app corre 100% offline dentro del WebView nativo. -->
+<link rel="icon" type="image/svg+xml" href="/assets/icons/logo.svg">
+</head>
+<body>
+
+<div id="appShell">
+
+  <!-- ============ TOAST ============ -->
+  <div class="vp-toast" id="vpToast" role="status" aria-live="polite"></div>
+
+  <!-- ============ SPLASH ============ -->
+  <div class="vp-view active" id="view-splash">
+    <div>
+      <div class="vp-splash-logo"><img src="/assets/icons/logo.svg" alt="VidaPet"></div>
+      <div class="vp-splash-title">Vida<br><span>Pet</span></div>
+      <div class="spinner-vp mx-auto" role="status" aria-label="Cargando"></div>
+    </div>
+  </div>
+
+  <!-- ============ MASCOTAS / CUENTA ============ -->
+  <div class="vp-view" id="view-mascotas">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer; position: absolute; left: 0;"><img src="/assets/icons/logo.svg" alt=""></div>
+        <div class="text-center">
+          <h5>VidaPet</h5>
+          <p class="vp-subtitle" data-i18n="subPets">Mascotas</p>
+        </div>
+      </div>
+    </header>
+    <div class="vp-scroll">
+      <div class="d-flex gap-4 mb-4 flex-wrap" id="petsAvatarRow"></div>
+
+      <div id="mascotasEmptyState"></div>
+
+      <div id="nextApptCard" class="mb-3"></div>
+
+      <div class="vp-card mb-3">
+        <div class="vp-list-item" style="border-bottom:none;color:var(--vp-text-muted);font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding-bottom:.3rem;" data-i18n="moreActions">Más acciones</div>
+        <button class="vp-list-item danger" id="btnEliminarMascota" onclick="eliminarMascotaSeleccionada()">
+          <span data-i18n="deletePet">Eliminar mascota</span> <i class="bi bi-chevron-right vp-chev"></i>
+        </button>
+        <button class="vp-list-item" id="btnReagendar" onclick="irReagendar()">
+          <span data-i18n="rescheduleService">Re agendar servicio</span> <i class="bi bi-chevron-right vp-chev"></i>
+        </button>
+        <button class="vp-list-item" id="btnCancelar" onclick="irCancelar()">
+          <span data-i18n="cancelService">Cancelar servicio</span> <i class="bi bi-chevron-right vp-chev"></i>
+        </button>
+        <button class="vp-list-item" id="btnNota" onclick="openNotaModal()">
+          <span data-i18n="addClinicalNote">Añadir nota clínica</span> <i class="bi bi-chevron-right vp-chev"></i>
+        </button>
+      </div>
+
+      <p class="text-center" style="font-size:.8rem;color:var(--vp-text-muted);">
+        <span data-i18n="haveProblems">¿Tienes problemas?</span> <a href="#" class="fw-bold" style="color:var(--vp-primary);text-decoration:none;" onclick="openInfoModal('contacto');return false;" data-i18n="contactUs">Contáctanos</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ============ AÑADIR MASCOTA ============ -->
+  <div class="vp-view" id="view-add-mascota">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div style="position: absolute; left: 0; display: flex; align-items: center; gap: .5rem;">
+          <button class="btn btn-sm p-0" style="color:#fff;" onclick="goTo('mascotas')" aria-label="Volver"><i class="bi bi-arrow-left fs-5"></i></button>
+          <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer;"><img src="/assets/icons/logo.svg" alt=""></div>
+        </div>
+        <div class="text-center"><h5>VidaPet</h5><p class="vp-subtitle" data-i18n="subAdd">Registrar</p></div>
+      </div>
+    </header>
+    <div class="vp-scroll">
+      <div class="vp-upload-photo mb-4" id="petPhotoPreview" onclick="document.getElementById('petPhotoInput').click()">
+        <i class="bi bi-camera-fill"></i>
+        <span class="vp-upload-badge"><i class="bi bi-check"></i></span>
+      </div>
+      <input type="file" accept="image/*" id="petPhotoInput" class="d-none" onchange="handlePetPhoto(event)">
+
+      <form id="formAddPet" class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label" data-i18n="petName">Nombre de la mascota</label>
+          <input required class="form-control" id="petNombre" placeholder="Ej. Rocco" data-i18n-placeholder="petNamePh">
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petSpecies">Especie</label>
+          <select class="form-select" id="petEspecie">
+            <option data-i18n="speciesDog">Perro</option><option data-i18n="speciesCat">Gato</option><option data-i18n="speciesBird">Ave</option><option data-i18n="speciesOther">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petBreed">Raza</label>
+          <input class="form-control" id="petRaza" placeholder="Ej. Labrador" data-i18n-placeholder="petBreedPh">
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petColor">Color</label>
+          <input class="form-control" id="petColor" placeholder="Ej. Dorado" data-i18n-placeholder="petColorPh">
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petSex">Sexo</label>
+          <select class="form-select" id="petSexo">
+            <option data-i18n="sexMale">Macho</option><option data-i18n="sexFemale">Hembra</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petBirth">Fecha de nacimiento</label>
+          <input type="date" class="form-control" id="petNacimiento">
+        </div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label" data-i18n="petWeight">Peso (kg)</label>
+            <input type="number" step="0.1" min="0" class="form-control" id="petPeso" placeholder="0.0">
+          </div>
+          <div class="col-6">
+            <label class="form-label" data-i18n="petHeight">Altura (cm)</label>
+            <input type="number" min="0" class="form-control" id="petAltura" placeholder="0">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" data-i18n="petComments">Comentarios adicionales</label>
+          <textarea class="form-control" id="petComentarios" rows="2" placeholder="Alergias, condiciones especiales…" data-i18n-placeholder="petCommentsPh"></textarea>
+        </div>
+        <button type="submit" class="btn btn-vp-primary mt-2" data-i18n="addPetBtn">Añadir mascota</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ AGENDA ============ -->
+  <div class="vp-view" id="view-agenda">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer; position: absolute; left: 0;"><img src="/assets/icons/logo.svg" alt=""></div>
+        <div class="text-center"><h5>VidaPet</h5><p class="vp-subtitle" data-i18n="subAgenda">Agenda</p></div>
+      </div>
+      <div class="vp-agenda-pet mt-3" id="agendaPetInfo"></div>
+    </header>
+    <div class="vp-scroll">
+      <div class="vp-calendar">
+        <div class="vp-cal-header">
+          <button onclick="changeMonth(-1)" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+          <span id="calMonthLabel">Abril</span>
+          <button onclick="changeMonth(1)" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        <div class="vp-cal-grid" id="calGrid"></div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span style="font-size:.78rem;font-weight:800;color:var(--vp-text-muted);text-transform:uppercase;letter-spacing:.05em;" data-i18n="upcomingEvents">Próximos eventos</span>
+        <button class="btn btn-sm btn-vp-outline py-1 px-2" style="font-size:.72rem;" onclick="openNuevaCitaModal()">
+          <i class="bi bi-plus-lg"></i> <span data-i18n="newAppt">Nueva cita</span>
+        </button>
+      </div>
+
+      <div class="vp-card">
+        <div id="eventsList"></div>
+      </div>
+    </div>
+    <button class="vp-fab" onclick="goTo('add-servicio')" id="fabAddServicio" data-i18n-aria="addServiceFab" aria-label="Adicionar servicio"><i class="bi bi-plus-lg"></i></button>
+  </div>
+
+  <!-- ============ AÑADIR SERVICIO ============ -->
+  <div class="vp-view" id="view-add-servicio">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div style="position: absolute; left: 0; display: flex; align-items: center; gap: .5rem;">
+          <button class="btn btn-sm p-0" style="color:#fff;" onclick="goTo('agenda')" aria-label="Volver"><i class="bi bi-arrow-left fs-5"></i></button>
+          <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer;"><img src="/assets/icons/logo.svg" alt=""></div>
+        </div>
+        <div class="text-center"><h5>VidaPet</h5><p class="vp-subtitle" data-i18n="subServices">Servicios</p></div>
+      </div>
+    </header>
+    <div class="vp-scroll">
+      <div class="vp-card mb-3" id="serviceListWrap"></div>
+      <button class="btn btn-vp-primary w-100" id="btnGuardarServicios" onclick="guardarServicios()" data-i18n="addBtn">Añadir</button>
+    </div>
+  </div>
+
+  <!-- ============ HISTORIAL ============ -->
+  <div class="vp-view" id="view-historial">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer; position: absolute; left: 0;"><img src="/assets/icons/logo.svg" alt=""></div>
+        <div class="text-center"><h5>VidaPet</h5><p class="vp-subtitle" data-i18n="subHistory">Historial</p></div>
+      </div>
+    </header>
+    <div class="vp-scroll">
+      <div class="vp-search-wrap">
+        <i class="bi bi-search"></i>
+        <input class="form-control" id="historialSearch" placeholder="¿Qué estás buscando?" oninput="renderHistorial()" data-i18n-placeholder="searchPh">
+      </div>
+      <div class="d-flex gap-2 mb-3 flex-wrap" id="historialFiltros"></div>
+      <div id="historialList"></div>
+    </div>
+  </div>
+
+  <!-- ============ CONFIGURACION ============ -->
+  <div class="vp-view" id="view-configuracion">
+    <header class="vp-header">
+      <div class="vp-header-top" style="position: relative; justify-content: center;">
+        <div class="vp-logo-badge" onclick="goTo('mascotas')" style="cursor: pointer; position: absolute; left: 0;"><img src="/assets/icons/logo.svg" alt=""></div>
+        <div class="text-center"><h5>VidaPet</h5><p class="vp-subtitle" data-i18n="subConfig">Configuración</p></div>
+      </div>
+    </header>
+    <div class="vp-scroll">
+      <div class="text-center mb-2">
+        <div class="vp-config-avatar"><i class="bi bi-person-fill"></i></div>
+      </div>
+
+      <div class="vp-config-section-title" data-i18n="moreSection">Más</div>
+      <div class="vp-card">
+        <div class="vp-list-item" style="cursor:default;">
+          <span data-i18n="notifications">Notificaciones</span>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="notifSwitch" checked onchange="toggleNotificaciones(this.checked)">
+          </div>
+        </div>
+        <div class="vp-list-item" style="cursor:default;">
+          <span data-i18n="darkMode">Modo oscuro</span>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="darkSwitch" onchange="toggleDarkMode(this.checked)">
+          </div>
+        </div>
+        <div class="vp-list-item" style="cursor:default;">
+          Idioma / Language
+          <select class="form-select w-auto py-1" style="font-size: .8rem;" id="langSelect" onchange="changeLanguage(this.value)">
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="vp-config-section-title" data-i18n="legalSection">Legal</div>
+      <div class="vp-card">
+        <button class="vp-list-item" onclick="openInfoModal('sobre')"><span data-i18n="aboutUs">Sobre nosotros</span> <i class="bi bi-chevron-right vp-chev"></i></button>
+        <button class="vp-list-item" onclick="openInfoModal('politica')"><span data-i18n="privacyPolicy">Política de privacidad</span> <i class="bi bi-chevron-right vp-chev"></i></button>
+        <button class="vp-list-item" onclick="openInfoModal('terminos')"><span data-i18n="termsConditions">Términos y condiciones</span> <i class="bi bi-chevron-right vp-chev"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="vp-bottom-nav" id="bottomNav">
+    <button class="vp-nav-btn" data-target="mascotas"><i class="bi bi-person-hearts"></i><span data-i18n="navPets">Mascotas</span></button>
+    <button class="vp-nav-btn" data-target="agenda"><i class="bi bi-calendar-week"></i><span data-i18n="navAgenda">Agenda</span></button>
+    <button class="vp-nav-btn" data-target="add-servicio"><i class="bi bi-clipboard2-pulse"></i><span data-i18n="navServices">Servicios</span></button>
+    <button class="vp-nav-btn" data-target="historial"><i class="bi bi-clock-history"></i><span data-i18n="navHistory">Historial</span></button>
+    <button class="vp-nav-btn" data-target="configuracion"><i class="bi bi-gear"></i><span data-i18n="navConfig">Configuración</span></button>
+  </nav>
+
+  <!-- ============ MODAL: Confirmar eliminación de mascota ============ -->
+  <div class="modal fade" id="modalConfirmDeletePet" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger me-2"></i><span data-i18n="deletePetModalTitle">Eliminar mascota</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deletePetMsg" style="font-size:.9rem;" data-i18n="deletePetConfirm">¿Eliminar esta mascota? Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-vp-outline" data-bs-dismiss="modal" data-i18n="cancel">Cancelar</button>
+          <button type="button" class="btn-vp-danger" id="btnConfirmDeletePet" data-i18n="delete">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Nueva cita ============ -->
+  <div class="modal fade" id="modalNuevaCita" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i><span data-i18n="apptTitle">Nueva cita</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="formNuevaCita">
+          <div class="modal-body d-flex flex-column gap-3">
+            <div>
+              <label class="form-label" data-i18n="apptPet">Mascota</label>
+              <select class="form-select" id="citaPet" required></select>
+            </div>
+            <div>
+              <label class="form-label" data-i18n="apptType">Tipo de cita</label>
+              <select class="form-select" id="citaTipo">
+                <option value="vacuna" data-i18n="typeVacuna">Vacuna</option>
+                <option value="medicamento" data-i18n="typeMedicamento">Medicamento</option>
+                <option value="consulta" data-i18n="typeConsulta">Consulta</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" data-i18n="apptNameLabel">Nombre / motivo</label>
+              <input class="form-control" id="citaNombre" required placeholder="Ej. Antirrábica" data-i18n-placeholder="apptNamePh">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="apptInfoLabel">Información adicional</label>
+              <input class="form-control" id="citaInfo" placeholder="Ej. Dosis anual" data-i18n-placeholder="apptInfoPh">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="apptDate">Fecha</label>
+              <input type="date" class="form-control" id="citaFecha" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-vp-outline" data-bs-dismiss="modal" data-i18n="cancel">Cancelar</button>
+            <button type="submit" class="btn-vp-primary" data-i18n="saveAppt">Guardar cita</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Acciones sobre una cita (reagendar / cancelar) ============ -->
+  <div class="modal fade" id="modalEventAction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="eventActionTitle" data-i18n="manageAppt">Gestionar cita</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p id="eventActionInfo" style="font-size:.85rem;color:var(--vp-text-muted);"></p>
+
+          <div id="eventReagendarBox" class="d-none mt-2">
+            <label class="form-label" data-i18n="newDate">Nueva fecha</label>
+            <input type="date" class="form-control" id="eventNuevaFecha">
+          </div>
+        </div>
+        <div class="modal-footer flex-wrap justify-content-between">
+          <button type="button" class="btn-vp-danger" id="btnEventCancelar">
+            <i class="bi bi-x-circle me-1"></i><span data-i18n="cancelAppt">Cancelar cita</span>
+          </button>
+          <button type="button" class="btn-vp-primary" id="btnEventReagendar">
+            <i class="bi bi-arrow-repeat me-1"></i><span data-i18n="reschedule">Reagendar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Elegir cita para reagendar/cancelar (desde Mascotas) ============ -->
+  <div class="modal fade" id="modalPickEvent" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="pickEventTitle" data-i18n="pickAppt">Selecciona una cita</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="pickEventList" style="max-height:60vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Nota clínica / manual ============ -->
+  <div class="modal fade" id="modalNota" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-journal-medical me-2"></i><span data-i18n="clinicalNote">Nota clínica</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="formNota">
+          <div class="modal-body d-flex flex-column gap-3">
+            <div>
+              <label class="form-label" data-i18n="petOptional">Mascota (opcional)</label>
+              <select class="form-select" id="notaMascota">
+                <option value="" data-i18n="generalNoPet">General (sin mascota específica)</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" data-i18n="noteLabel">Nota</label>
+              <textarea class="form-control" id="notaTexto" rows="3" required placeholder="Ej. Presenta leve cojera en pata trasera derecha" data-i18n-placeholder="notePh"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-vp-outline" data-bs-dismiss="modal" data-i18n="cancel">Cancelar</button>
+            <button type="submit" class="btn-vp-primary" data-i18n="saveNote">Guardar nota</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Informativo (Sobre nosotros / Política / Términos / Contacto) ============ -->
+  <div class="modal fade" id="modalInfo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="infoModalTitle" data-i18n="information">Información</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="infoModalBody" class="vp-legal-body" style="font-size:.85rem;color:var(--vp-text-muted);"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-vp-primary" data-bs-dismiss="modal" data-i18n="understood">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Eventos de un día de la agenda ============ -->
+  <div class="modal fade" id="modalDayEvents" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="dayEventsTitle"><i class="bi bi-calendar3 me-2"></i><span data-i18n="dayEvents">Eventos del día</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="dayEventsList" style="max-height:60vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Confirmar eliminación de registro de historial ============ -->
+  <div class="modal fade" id="modalConfirmDeleteHist" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger me-2"></i><span data-i18n="deleteRecord">Eliminar registro</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:.9rem;" data-i18n="deleteRecordConfirm">¿Eliminar este registro del historial? Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-vp-outline" data-bs-dismiss="modal" data-i18n="cancel">Cancelar</button>
+          <button type="button" class="btn-vp-danger" id="btnConfirmDeleteHist" data-i18n="delete">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Fecha del servicio ============ -->
+<div class="modal fade" id="modalServiceDate" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i><span data-i18n="serviceDate">Fecha del servicio</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" data-i18n="serviceDateHint">Selecciona cuándo se realizó o realizará el servicio:</label>
+        <input type="date" class="form-control" id="inputServiceDate">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-vp-outline" data-bs-dismiss="modal" data-i18n="cancel">Cancelar</button>
+        <button type="button" class="btn-vp-primary" onclick="confirmarGuardarServicios()" data-i18n="confirmSave">Confirmar y guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
