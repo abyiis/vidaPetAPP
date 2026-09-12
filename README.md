@@ -1,81 +1,109 @@
 # VidaPet
 
-App para organizar la salud y cuidados de tus mascotas (citas, servicios, historial y notas clínicas). 100% offline — todos los datos se guardan en `localStorage` del dispositivo.
+[![Google Play Store](https://img.shields.io/badge/Google_Play-VidaPet-green?style=for-the-badge&logo=google-play)](https://play.google.com/store/apps/details?id=co.edu.upb.vidapet&hl=es_CO)
+[![Built with Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Powered by Capacitor](https://img.shields.io/badge/Capacitor-119EFF?style=for-the-badge&logo=capacitor&logoColor=white)](https://capacitorjs.com/)
 
-## Qué cambió en esta versión
+**VidaPet** es una aplicación móvil moderna desarrollada para el cuidado, seguimiento e historial de mascotas. Diseñada e impulsada por estudiantes e investigadores de la Universidad Pontificia Bolivariana (UPB), la aplicación ofrece una experiencia fluida e intuitiva para que los dueños de mascotas mantengan al día la información médica, recordatorios y detalles generales de sus compañeros de vida.
 
-1. **Cambio de idioma corregido.** Antes solo se traducían los 5 botones del menú inferior; el resto de la app (formularios, modales, estados vacíos, toasts) quedaba en español y además se re-escribía en español cada vez que se navegaba a otra pantalla. Ahora hay un diccionario central (`src/i18n.js`) que traduce toda la interfaz y sobrevive a los re-renders.
-2. **Estado vacío en Servicios.** Si todavía no hay mascotas registradas, la pantalla de Servicios (accesible desde la barra inferior) ya no muestra el selector de servicios: muestra un mensaje sugiriendo crear una mascota primero, igual que ya hacían Agenda e Historial.
-3. **Nueva tarjeta "Próxima cita"** en la vista Mascotas: muestra de un vistazo la siguiente cita agendada de la mascota seleccionada, sin tener que entrar a Agenda.
-4. **Bundler Vite + npm.** El proyecto pasó de scripts sueltos (`<script src="app.js">`) a un proyecto npm con módulos ES, listo para compilar y empaquetar como app nativa.
-5. **Offline real.** Bootstrap, los iconos y las fuentes (antes cargados desde CDNs externos) ahora se empaquetan localmente con Vite. La app no depende de internet para verse o funcionar correctamente dentro del WebView nativo.
+---
 
-## Desarrollo
+## Descarga e Instalación
 
-```bash
-npm install
-npm run dev        # http://localhost:5173 con recarga en caliente
-```
+La aplicación está disponible oficialmente en la tienda de Google Play para dispositivos Android:
 
-## Build de producción (web)
+**[Descargar VidaPet en Google Play Store](https://play.google.com/store/apps/details?id=co.edu.upb.vidapet&hl=es_CO)**
 
-```bash
-npm run build       # genera dist/
-npm run preview     # sirve dist/ para probarlo tal cual quedará empaquetado
-```
+---
 
-## Convertir en app Android y generar el `.aab`
+## Características Principales
 
-El proyecto ya trae `capacitor.config.json` listo (`appId: com.vidapet.app`). Pasos:
+- **Gestión de Perfiles de Mascotas:** Registra datos clave de tus mascotas, como nombre, raza, edad, peso e imágenes.
+- **Historial de Salud y Vacunación:** Lleva un control claro y organizado sobre vacunas, desparasitaciones y visitas al veterinario.
+- **Recordatorios y Citas:** Configura alertas oportunas para medicamentos, controles médicos y aseo.
+- **Soporte Multilingüe (i18n):** Interfaz adaptada con soporte de internacionalización para cambiar fácilmente de idioma.
+- **Experiencia Rápida y Fluida:** Construida con una interfaz moderna y ligera impulsada por Vite.
 
-1. Instalar Capacitor (una sola vez):
+---
+
+## Tecnologías Utilizadas
+
+- **Frontend Core:** JavaScript (ES6+), HTML5, CSS3.
+- **Herramienta de Construcción:** [Vite](https://vitejs.dev/) (para un desarrollo y compilación ultrarrápidos).
+- **Envoltorio Móvil:** [Capacitor](https://capacitorjs.com/) (para compilar a Android nativo).
+- **Internacionalización:** i18n integrado.
+- **Plataforma Objetivo:** Android (Java / Gradle).
+- **Institución:** Universidad Pontificia Bolivariana (UPB).
+
+---
+
+## Desarrollo Local e Instalación
+
+Si deseas ejecutar o compilar el proyecto localmente, sigue estos pasos:
+
+### Prerrequisitos
+
+- **Node.js** (v16.0 o superior)
+- **npm** o **yarn**
+- **Android Studio** (con SDK de Android configurado para la compilación móvil)
+
+### Pasos de Configuración
+
+1. **Clonar el repositorio:**
    ```bash
-   npm install @capacitor/core @capacitor/cli @capacitor/android
+   git clone https://github.com/tu-usuario/vidaPetAPP.git
+   cd vidaPetAPP-main
    ```
-2. Compilar el sitio y añadir la plataforma Android:
+
+2. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
+
+3. **Ejecutar en entorno de desarrollo web:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Construir el proyecto web:**
    ```bash
    npm run build
-   npx cap add android
    ```
-3. Cada vez que cambies el código web, sincroniza antes de compilar la app nativa:
+
+5. **Sincronizar con el proyecto de Android mediante Capacitor:**
    ```bash
-   npm run build && npx cap sync android
+   npx cap sync android
    ```
-4. Abrir el proyecto nativo en Android Studio:
+
+6. **Abrir el proyecto en Android Studio:**
    ```bash
    npx cap open android
    ```
-5. Generar una **clave de firma** (una sola vez, guárdala fuera del repo):
-   ```bash
-   keytool -genkey -v -keystore vidapet-release.keystore -alias vidapet -keyalg RSA -keysize 2048 -validity 10000
-   ```
-6. Generar el AAB firmado:
-   - Desde Android Studio: `Build → Generate Signed Bundle / APK… → Android App Bundle`, usando el keystore del paso 5.
-   - O por línea de comandos, configurando `android/keystore.properties` con las credenciales y luego:
-     ```bash
-     cd android
-     ./gradlew bundleRelease
-     ```
-   El archivo queda en `android/app/build/outputs/bundle/release/app-release.aab`. Ese es el que se sube a Play Console.
+   *Desde Android Studio puedes ejecutar la app en un emulador o en un dispositivo físico conectado.*
 
-### Antes de subir a Play Store
-- Cuenta de desarrollador de Google Play (pago único de $25 USD).
-- Ícono adaptativo y splash screen en las resoluciones que pide Android — se pueden generar automáticamente con `@capacitor/assets` a partir de `public/assets/icons/logo.svg`.
-- Política de privacidad publicada (Play Console la exige aunque los datos se queden solo en el dispositivo).
-- Probar el AAB en un dispositivo/emulador real antes de publicar (`npx cap run android`).
+---
 
-## Estructura del proyecto
+## Estructura del Proyecto
 
+```text
+vidaPetAPP-main/
+├── android/              # Proyecto nativo de Android (Gradle, Capacitor config)
+├── assets/               # Recursos estáticos (Logos, iconos, vectores SVG)
+├── public/               # Archivos públicos para el build
+├── src/                  # Código fuente principal de la aplicación
+│   ├── app.js            # Lógica principal de la aplicación
+│   ├── i18n.js           # Configuración e idioma
+│   ├── store.js          # Gestión de estado/datos
+│   ├── main.js           # Punto de entrada de la aplicación
+│   └── styles.css        # Estilos globales
+├── capacitor.config.json # Configuración global de Capacitor
+├── index.html            # Punto de entrada HTML
+├── package.json          # Dependencias y scripts
+└── vite.config.js        # Configuración del empaquetador Vite
 ```
-index.html          Marcado de todas las vistas (SPA de una sola página) + atributos data-i18n
-src/
-  main.js            Entry point de Vite: empaqueta Bootstrap, iconos, fuentes y estilos
-  app.js             Lógica de UI / navegación / render de cada vista
-  store.js           Persistencia en localStorage (mascotas, citas, servicios, historial)
-  i18n.js            Diccionario ES/EN + helpers de traducción
-  styles.css         Estilos propios
-public/
-  assets/icons/      Ícono/logo servidos tal cual (sin procesar por Vite)
-capacitor.config.json
-vite.config.js
-```
+
+---
+
+## 📄 Licencia y Créditos
+
+Desarrollado como proyecto institucional de la **Universidad Pontificia Bolivariana (UPB)**. Todos los derechos reservados.
